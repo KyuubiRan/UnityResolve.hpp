@@ -49,11 +49,10 @@
 #include <regex>
 #endif
 
-#if IOS_MODE
 #include <algorithm>
-#endif
-
+#include <cmath>
 #include <codecvt>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iostream>

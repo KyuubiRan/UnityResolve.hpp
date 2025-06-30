@@ -819,7 +819,9 @@ class UnityResolve final {
                                                   .static_field = false,
                                                   .vTable = nullptr};
                     pField->static_field = pField->offset <= 0;
-                    pField->type->name = Invoke<const char *>("il2cpp_type_get_name", pField->type->address);
+                    char *name = Invoke<char *>("il2cpp_type_get_name", pField->type->address);
+                    pField->type->name = name;
+                    Invoke<void>("il2cpp_free", name);
                     pField->type->size = -1;
                     klass->fields.push_back(pField);
                 }
@@ -873,16 +875,27 @@ class UnityResolve final {
                     pMethod->flags = Invoke<int>("il2cpp_method_get_flags", method, &fFlags);
 
                     pMethod->static_function = pMethod->flags & 0x10;
-                    pMethod->return_type->name = Invoke<const char *>("il2cpp_type_get_name", pMethod->return_type->address);
+                    char *name = Invoke<char *>("il2cpp_type_get_name", pMethod->return_type->address);
+                    pMethod->return_type->name = name;
+                    Invoke<void>("il2cpp_free", name);
                     pMethod->return_type->size = -1;
                     pMethod->function = *static_cast<void **>(method);
                     klass->methods.push_back(pMethod);
                     const auto argCount = Invoke<int>("il2cpp_method_get_param_count", method);
-                    for (auto index = 0; index < argCount; index++)
-                        pMethod->args.push_back(new Method::Arg{Invoke<const char *>("il2cpp_method_get_param_name", method, index),
-                                                                new Type{.address = Invoke<void *>("il2cpp_method_get_param", method, index),
-                                                                         .name = Invoke<const char *>("il2cpp_type_get_name", Invoke<void *>("il2cpp_method_get_param", method, index)),
-                                                                         .size = -1}});
+                    for (auto index = 0; index < argCount; index++) {
+                        auto arg = new Method::Arg();
+                        arg->name = Invoke<const char *>("il2cpp_method_get_param_name", method, index);
+                        {
+                            auto pType = new Type();
+                            pType->address = Invoke<void *>("il2cpp_method_get_param", method, index);
+                            char *type_name = Invoke<char *>("il2cpp_type_get_name", pType->address);
+                            pType->name = type_name;
+                            Invoke<void>("il2cpp_free", type_name);
+                            pType->size = -1;
+                            arg->pType = pType;
+                        }
+                        pMethod->args.emplace_back(arg);
+                    }
                 }
             } while (method);
         } else {

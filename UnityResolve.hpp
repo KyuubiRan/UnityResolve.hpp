@@ -50,6 +50,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <codecvt>
 #include <cstring>
@@ -59,6 +60,7 @@
 #include <mutex>
 #include <numbers>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -416,6 +418,8 @@ class UnityResolve final {
 
         if (mode_ == Mode::Il2Cpp) {
             pDomain = Invoke<void *>("il2cpp_domain_get");
+            while (!Invoke<bool>("il2cpp_is_vm_thread", nullptr))
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             Invoke<void *>("il2cpp_thread_attach", pDomain);
             ForeachAssembly();
         } else {

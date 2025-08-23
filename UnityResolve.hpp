@@ -2314,6 +2314,13 @@ class UnityResolve final {
                 if (method)
                     return method->Invoke<void>(original);
             }
+			
+			static auto DontDestroyOnLoad(UnityObject* target) -> void {
+				if (!target) return;
+				static Method* method;
+				if (!method) method = Get("UnityEngine.CoreModule.dll")->Get("Object")->Get<Method>("DontDestroyOnLoad", { "*" });
+				if (method) return method->Invoke<void>(target);
+			}
         };
 
         struct Component : public UnityObject {

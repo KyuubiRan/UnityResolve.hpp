@@ -57,6 +57,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <filesystem>
 #include <mutex>
 #include <numbers>
 #include <string>
@@ -432,8 +433,8 @@ class UnityResolve final {
     }
 
 #if WINDOWS_MODE || LINUX_MODE || IOS_MODE /*__cplusplus >= 202002L*/
-    static auto DumpToFile(const std::string path) -> void {
-        std::ofstream io(path + "dump.cs", std::fstream::out);
+    static auto DumpToFile(const std::filesystem::path path) -> void {
+        std::ofstream io(path / "dump.cs", std::fstream::out);
         if (!io)
             return;
 
@@ -468,7 +469,7 @@ class UnityResolve final {
         io << '\n';
         io.close();
 
-        std::ofstream io2(path + "struct.hpp", std::fstream::out);
+        std::ofstream io2(path / "struct.hpp", std::fstream::out);
         if (!io2)
             return;
 

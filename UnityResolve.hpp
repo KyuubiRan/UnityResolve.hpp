@@ -2015,8 +2015,19 @@ class UnityResolve final {
             wchar_t m_firstChar[32]{};
 
             [[nodiscard]] auto ToString() const -> std::string {
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> converterX;
+#ifdef _WIN32
+                if (m_stringLength <= 0)
+                    return {};
+
+                const int size_needed = WideCharToMultiByte(CP_UTF8, 0, m_firstChar, m_stringLength, nullptr, 0, nullptr, nullptr);
+                std::string out(size_needed, 0);
+                WideCharToMultiByte(CP_UTF8, 0, m_firstChar, m_stringLength, out.data(), size_needed, nullptr, nullptr);
+            
+                return out;
+#else
+                static std::wstring_convert<std::codecvt_utf8<wchar_t>> converterX;
                 return converterX.to_bytes(m_firstChar);
+#endif
             }
 
             auto operator[](const int i) const -> wchar_t { return m_firstChar[i]; }

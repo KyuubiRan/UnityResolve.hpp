@@ -440,19 +440,19 @@ class UnityResolve final {
 
         for (const auto &pAssembly : assembly) {
             for (const auto &pClass : pAssembly->classes) {
-                io << std::format("\tnamespace: {}", pClass->namespaze.empty() ? "" : pClass->namespaze);
-                io << "\n";
-                io << std::format("\tAssembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
-                io << std::format("\tAssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
+                io << std::format("\t// namespace: {}\n", pClass->namespaze.empty() ? "" : pClass->namespaze);
+                io << std::format("\t// Assembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
+                io << std::format("\t// AssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
                 io << std::format("\tclass {}{} ", pClass->name, pClass->parent.empty() ? "" : " : " + pClass->parent);
-                io << "{\n\n";
+                io << "{";
                 for (const auto &pField : pClass->fields)
-                    io << std::format("\t\t{:+#06X} | {}{} {};\n", pField->offset, pField->static_field ? "static " : "", pField->type->name, pField->name);
-                io << "\n";
+                    io << std::format("\n\t\t{:+#06x} | {}{} {};", pField->offset, pField->static_field ? "static " : "", pField->type->name, pField->name);
+                if (!pClass->fields.empty())
+                    io << "\n";
                 for (const auto &pMethod : pClass->methods) {
-                    io << std::format("\t\t[Flags: {:032b}] [ParamsCount: {:04d}] |RVA: {:+#010X}|\n", pMethod->flags, pMethod->args.size(),
+                    io << std::format("\n\t\t[Flags: {:032b}] [ParamsCount: {:04d}] |RVA: {:+#010x}|", pMethod->flags, pMethod->args.size(),
                                       reinterpret_cast<std::uint64_t>(pMethod->function) - reinterpret_cast<std::uint64_t>(hmodule_));
-                    io << std::format("\t\t{}{} {}(", pMethod->static_function ? "static " : "", pMethod->return_type->name, pMethod->name);
+                    io << std::format("\n\t\t{}{} {}(", pMethod->static_function ? "static " : "", pMethod->return_type->name, pMethod->name);
                     std::string params{};
                     for (const auto &pArg : pMethod->args)
                         params += std::format("{} {}, ", pArg->pType->name, pArg->name);
@@ -460,7 +460,7 @@ class UnityResolve final {
                         params.pop_back();
                         params.pop_back();
                     }
-                    io << (params.empty() ? "" : params) << ");\n\n";
+                    io << (params.empty() ? "" : params) << ");\n";
                 }
                 io << "\t}\n\n";
             }
@@ -475,12 +475,12 @@ class UnityResolve final {
 
         for (const auto &pAssembly : assembly) {
             for (const auto &pClass : pAssembly->classes) {
-                io2 << std::format("\tnamespace: {}", pClass->namespaze.empty() ? "" : pClass->namespaze);
+                io2 << std::format("\t// namespace: {}", pClass->namespaze.empty() ? "" : pClass->namespaze);
                 io2 << "\n";
-                io2 << std::format("\tAssembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
-                io2 << std::format("\tAssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
+                io2 << std::format("\t// Assembly: {}\n", pAssembly->name.empty() ? "" : pAssembly->name);
+                io2 << std::format("\t// AssemblyFile: {} \n", pAssembly->file.empty() ? "" : pAssembly->file);
                 io2 << std::format("\tstruct {}{} ", pClass->name, pClass->parent.empty() ? "" : " : " + pClass->parent);
-                io2 << "{\n\n";
+                io2 << "{";
 
                 for (size_t i = 0; i < pClass->fields.size(); i++) {
                     if (pClass->fields[i]->static_field)
@@ -490,7 +490,7 @@ class UnityResolve final {
 
                 next:
                     if ((i + 1) >= pClass->fields.size()) {
-                        io2 << std::format("\t\tchar {}[0x{:06X}];\n", field->name, 0x4);
+                        io2 << std::format("\n\t\tchar {}[0x{:06X}];", field->name, 0x4);
                         continue;
                     }
 
@@ -504,157 +504,154 @@ class UnityResolve final {
                     std::ranges::replace(name, '>', '_');
 
                     if (field->type->name == "System.Int64") {
-                        io2 << std::format("\t\tstd::int64_t {};\n", name);
+                        io2 << std::format("\n\t\tstd::int64_t {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 8)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 8);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 8);
                         continue;
                     }
 
                     if (field->type->name == "System.UInt64") {
-                        io2 << std::format("\t\tstd::uint64_t {};\n", name);
+                        io2 << std::format("\n\t\tstd::uint64_t {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 8)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 8);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 8);
                         continue;
                     }
 
                     if (field->type->name == "System.Int32") {
-                        io2 << std::format("\t\tint {};\n", name);
+                        io2 << std::format("\n\t\tint {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 4)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 4);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 4);
                         continue;
                     }
 
                     if (field->type->name == "System.UInt32") {
-                        io2 << std::format("\t\tstd::uint32_t {};\n", name);
+                        io2 << std::format("\n\t\tstd::uint32_t {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 4)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 4);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 4);
                         continue;
                     }
 
                     if (field->type->name == "System.Boolean") {
-                        io2 << std::format("\t\tbool {};\n", name);
+                        io2 << std::format("\n\t\tbool {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 1)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 1);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 1);
                         continue;
                     }
 
                     if (field->type->name == "System.String") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::String* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::String* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "System.Single") {
-                        io2 << std::format("\t\tfloat {};\n", name);
+                        io2 << std::format("\n\t\tfloat {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 4)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 4);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 4);
                         continue;
                     }
 
                     if (field->type->name == "System.Double") {
-                        io2 << std::format("\t\tdouble {};\n", name);
+                        io2 << std::format("\n\t\tdouble {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > 8)
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - 8);
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - 8);
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Vector3") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Vector3 {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Vector3 {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Vector3))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector3));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector3));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Vector2") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Vector2 {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Vector2 {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Vector2))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector2));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector2));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Vector4") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Vector4 {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Vector4 {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Vector4))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector4));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Vector4));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.GameObject") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::GameObject* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::GameObject* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Transform") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Transform* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Transform* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Animator") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Animator* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Animator* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Physics") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Physics* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Physics* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Component") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Component* {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Component* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Rect") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Rect {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Rect {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Rect))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Rect));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Rect));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Quaternion") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Quaternion {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Quaternion {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Quaternion))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Quaternion));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Quaternion));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Color") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Color {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Color {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Color))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Color));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Color));
                         continue;
                     }
 
                     if (field->type->name == "UnityEngine.Matrix4x4") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Matrix4x4 {};\n", name);
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Matrix4x4 {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(UnityType::Matrix4x4))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Matrix4x4));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(UnityType::Matrix4x4));
                         continue;
-                    }
-
-                    if (field->type->name == "UnityEngine.Rigidbody") {
-                        io2 << std::format("\t\tUnityResolve::UnityType::Rigidbody* {};\n", name);
+                    }if (field->type->name == "UnityEngine.Rigidbody") {
+                        io2 << std::format("\n\t\tUnityResolve::UnityType::Rigidbody* {};", name);
                         if (!pClass->fields[i + 1]->static_field && (pClass->fields[i + 1]->offset - field->offset) > sizeof(void *))
-                            io2 << std::format("\t\tchar {}_[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
+                            io2 << std::format("\n\t\tchar {}_[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset - sizeof(void *));
                         continue;
                     }
 
-                    io2 << std::format("\t\tchar {}[0x{:06X}];\n", name, pClass->fields[i + 1]->offset - field->offset);
+                    io2 << std::format("\n\t\tchar {}[0x{:06X}];", name, pClass->fields[i + 1]->offset - field->offset);
                 }
-
-                io2 << "\n";
-                io2 << "\t};\n\n";
+                
+                io2 << "\n\t};\n\n";
             }
         }
         io2 << '\n';
